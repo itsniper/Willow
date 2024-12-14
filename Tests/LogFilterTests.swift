@@ -74,11 +74,11 @@ class MockWriter: LogWriter {
     var messagesWritten: [String] = []
     var logMessagesWritten: [LogMessage] = []
 
-    func writeMessage(_ message: String, logLevel: LogLevel) {
+    func writeMessage(_ message: String, logLevel: LogLevel, logSource: Willow.LogSource) {
         messagesWritten.append(message)
     }
 
-    func writeMessage(_ message: LogMessage, logLevel: LogLevel) {
+    func writeMessage(_ message: LogMessage, logLevel: LogLevel, logSource: Willow.LogSource) {
         logMessagesWritten.append(message)
     }
 }
