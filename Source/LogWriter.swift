@@ -28,7 +28,7 @@ import os
 /// The LogWriter protocol defines a single API for writing a log message. The message can be written in any way
 /// the conforming object sees fit. For example, it could write to the console, write to a file, remote log to a third
 /// party service, etc.
-public protocol LogWriter {
+public protocol LogWriter: Sendable {
     func writeMessage(_ message: String, logLevel: LogLevel, logSource: LogSource)
     func writeMessage(_ message: LogMessage, logLevel: LogLevel, logSource: LogSource)
 }
@@ -61,7 +61,7 @@ extension LogModifierWriter {
 
 /// The ConsoleWriter class runs all modifiers in the order they were created and prints the resulting message
 /// to the console.
-open class ConsoleWriter: LogModifierWriter {
+open class ConsoleWriter: LogModifierWriter, @unchecked Sendable {
     /// Used to define whether to use the print or NSLog functions when logging to the console.
     ///
     /// During development, it is recommendeded to use the `.print` case. When deploying to production, the `.nslog`
@@ -130,7 +130,7 @@ open class ConsoleWriter: LogModifierWriter {
 
 /// The OSLogWriter class runs all modifiers in the order they were created and passes the resulting message
 /// off to an OSLog with the specified subsystem and category.
-open class OSLogWriter: LogModifierWriter {
+open class OSLogWriter: LogModifierWriter, @unchecked Sendable {
     public let subsystem: String
     public let category: String
 

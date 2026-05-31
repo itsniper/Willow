@@ -34,22 +34,22 @@ extension LogLevel {
 }
 
 extension Logger {
-    fileprivate func verboseMessage(_ message: @autoclosure @escaping () -> String) {
+    fileprivate func verboseMessage(_ message: @autoclosure @escaping @Sendable () -> String) {
         let logSource = LogSource(file: #file, function: #function, line: #line, column: #column)
         logMessage(message, with: LogLevel.verbose, at: logSource)
     }
 
-    fileprivate func verboseMessage(_ message: @escaping () -> String) {
+    fileprivate func verboseMessage(_ message: @escaping @Sendable () -> String) {
         let logSource = LogSource(file: #file, function: #function, line: #line, column: #column)
         logMessage(message, with: LogLevel.verbose, at: logSource)
     }
 
-    fileprivate func summaryMessage(_ message: @autoclosure @escaping () -> String) {
+    fileprivate func summaryMessage(_ message: @autoclosure @escaping @Sendable () -> String) {
         let logSource = LogSource(file: #file, function: #function, line: #line, column: #column)
         logMessage(message, with: LogLevel.summary, at: logSource)
     }
 
-    fileprivate func summaryMessage(_ message: @escaping () -> String) {
+    fileprivate func summaryMessage(_ message: @escaping @Sendable () -> String) {
         let logSource = LogSource(file: #file, function: #function, line: #line, column: #column)
         logMessage(message, with: LogLevel.summary, at: logSource)
     }
@@ -57,7 +57,7 @@ extension Logger {
 
 // MARK: - Helper Test Classes
 
-class TestWriter: LogWriter {
+class TestWriter: LogWriter, @unchecked Sendable {
     private(set) var actualNumberOfWrites: Int = 0
     private(set) var message: String?
 

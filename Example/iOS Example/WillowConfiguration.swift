@@ -28,13 +28,18 @@ import UIKit
 import WebServices
 import Willow
 
-var log: Logger = .disabled
+/// Top-level logger used by the iOS example app.
+///
+/// > Concurrency: Marked `nonisolated(unsafe)` because it is assigned exactly once
+/// > from `WillowConfiguration.configure()` on the main thread during launch and read
+/// > from any thread afterward.
+nonisolated(unsafe) var log: Logger = .disabled
 
 struct WillowConfiguration {
 
     // MARK: - Modifiers
 
-    private struct PrefixModifier: LogModifier {
+    private struct PrefixModifier: LogModifier, Sendable {
         let prefix: String
         let name: String
 
@@ -54,10 +59,10 @@ struct WillowConfiguration {
 
     // MARK: Writers
 
-    private class ServiceWriter: LogWriter {
+    private final class ServiceWriter: LogWriter, @unchecked Sendable {
         func writeMessage(_ message: String, logLevel: LogLevel, logSource: LogSource) {
             // Send the message as-is to our external logging service
-            let attributes: [String: Any] = ["LogLevel": logLevel.description]
+            let attributes: [String: any Sendable] = ["LogLevel": logLevel.description]
 
              ServiceSDK.recordBreadcrumb(message, attributes: attributes)
         }
@@ -135,13 +140,13 @@ struct WillowConfiguration {
 
 /// Placeholder for a 3rd party logging service SDK. Serves as an example of calling an SDK with log output.
 private struct ServiceSDK {
-    static func recordBreadcrumb(_ message: String, attributes: [String: Any]) {
+    static func recordBreadcrumb(_ message: String, attributes: [String: any Sendable]) {
         // Implement me...
     }
 }
 
 // An example of a filter that can exclude certain logs
-struct HTTPStatusCodeFilter: LogFilter {
+struct HTTPStatusCodeFilter: LogFilter, Sendable {
     let statusCodeToIgnore: Int
 
     init(statusCodeToIgnore: Int) {

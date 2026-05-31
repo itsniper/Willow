@@ -29,7 +29,7 @@ extension LogLevel {
     // Namespace our custom levels
     public enum Database {
         /// Custom log level for SQL log messages with a bitmask of `1 << 8`.
-        public static var sql = LogLevel(rawValue: 0b00000000_00000000_00000001_00000000)
+        public static let sql = LogLevel(rawValue: 0b00000000_00000000_00000001_00000000)
     }
 }
 
@@ -42,7 +42,7 @@ extension Logger {
         function: StaticString = #function,
         line: UInt = #line,
         column: UInt = #column,
-        _ message: @autoclosure @escaping () -> LogMessage
+        _ message: @autoclosure @escaping @Sendable () -> LogMessage
     ) {
         let logSource = LogSource(file: file, function: function, line: line, column: column)
         logMessage(message, with: LogLevel.Database.sql, at: logSource)
@@ -53,7 +53,7 @@ extension Logger {
         function: StaticString = #function,
         line: UInt = #line,
         column: UInt = #column,
-        _ message: @escaping () -> LogMessage
+        _ message: @escaping @Sendable () -> LogMessage
     ) {
         let logSource = LogSource(file: file, function: function, line: line, column: column)
         logMessage(message, with: LogLevel.Database.sql, at: logSource)
@@ -67,7 +67,7 @@ extension Optional where Wrapped == Logger {
         function: StaticString = #function,
         line: UInt = #line,
         column: UInt = #column,
-        _ message: @autoclosure @escaping () -> LogMessage
+        _ message: @autoclosure @escaping @Sendable () -> LogMessage
     ) {
         guard case let .some(log) = self else { return }
         let logSource = LogSource(file: file, function: function, line: line, column: column)
@@ -79,7 +79,7 @@ extension Optional where Wrapped == Logger {
         function: StaticString = #function,
         line: UInt = #line,
         column: UInt = #column,
-        _ message: @escaping () -> LogMessage
+        _ message: @escaping @Sendable () -> LogMessage
     ) {
         guard case let .some(log) = self else { return }
         let logSource = LogSource(file: file, function: function, line: line, column: column)
@@ -90,13 +90,18 @@ extension Optional where Wrapped == Logger {
 // MARK: -
 
 /// The single `Logger` instance used throughout Database.
-public var log: Logger = .disabled
+///
+/// > Concurrency: This is the documented "global is assigned once at app launch and read
+/// > everywhere afterward" Swift 6 escape hatch (`nonisolated(unsafe)`). Callers must
+/// > assign `log` exactly once, before any other thread can observe it (typically inside
+/// > `WillowConfiguration.configure()` from the app delegate's launch path).
+nonisolated(unsafe) public var log: Logger = .disabled
 
 /// Message type used by the Database framework.
 /// With this implementation you would have an enum case for each distinct message to be written.
 /// Note that where you might have had separate (but similar) strings in the past for messages,
 /// you can now consolidate into a single message with attributes now providing unique details
-enum Message: Willow.LogMessage {
+enum Message: Willow.LogMessage, @unchecked Sendable {
     case backupComplete
     case connectionOpened
     case sqlQuery(sql: String)
@@ -113,8 +118,8 @@ enum Message: Willow.LogMessage {
         }
     }
 
-    var attributes: [String: Any] {
-        var keyPathAttributes: [KeyPath: Any] = [:]
+    var attributes: [String: any Sendable] {
+        var keyPathAttributes: [KeyPath: any Sendable] = [:]
         let success: Bool
 
         // Fill in message specific attributes
@@ -147,7 +152,7 @@ enum Message: Willow.LogMessage {
         keyPathAttributes[.result] = success ? "success" : "failure"
 
         // Map to the expected types
-        var attributes: [String: Any] = [:]
+        var attributes: [String: any Sendable] = [:]
         keyPathAttributes.forEach { attributes[$0.key.rawValue] = $0.value }
 
         return attributes

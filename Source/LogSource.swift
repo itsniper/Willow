@@ -25,7 +25,7 @@
 import Foundation
 
 /// A LogSource represents the position in the source code where a message is logged.
-public struct LogSource {
+public struct LogSource: Sendable {
     /// The name of the file.
     public var file: StaticString
 
