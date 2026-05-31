@@ -27,7 +27,6 @@ import PackageDescription
 
 let package = Package(
     name: "Willow",
-    swiftLanguageVersions: [.v6],
     platforms: [
         .macOS(.v10_12),
         .iOS(.v10),
@@ -55,5 +54,6 @@ let package = Package(
                 .swiftLanguageMode(.v6)
             ]
         )
-    ]
+    ],
+    swiftLanguageModes: [.v6]
 )
