@@ -27,7 +27,7 @@ import os
 import Willow
 import XCTest
 
-struct TestLogFilter: LogFilter {
+struct TestLogFilter: LogFilter, Sendable {
     var name: String { "test" }
 
     let stringToExclude: String
@@ -41,7 +41,7 @@ struct TestLogFilter: LogFilter {
     }
 }
 
-struct TestLogFilterByAttributes: LogFilter {
+struct TestLogFilterByAttributes: LogFilter, Sendable {
     var name: String { "test2" }
 
     var excludedGroups: Set<String> = []
@@ -63,14 +63,14 @@ struct GroupedMessage: LogMessage {
     var name: String
     let group: String
 
-    var attributes: [String : Any] {
+    var attributes: [String: any Sendable] {
         [
             "group": group
         ]
     }
 }
 
-class MockWriter: LogWriter {
+class MockWriter: LogWriter, @unchecked Sendable {
     var messagesWritten: [String] = []
     var logMessagesWritten: [LogMessage] = []
 

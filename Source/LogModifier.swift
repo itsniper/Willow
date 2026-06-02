@@ -26,14 +26,22 @@ import Foundation
 
 /// The LogModifier protocol defines a single method for modifying a log message after it has been constructed.
 /// This is very flexible allowing any object that conforms to modify messages in any way it wants.
-public protocol LogModifier {
+public protocol LogModifier: Sendable {
     func modifyMessage(_ message: String, with logLevel: LogLevel, at logSource: LogSource) -> String
 }
 
 // MARK: -
 
 /// The TimestampModifier class applies a timestamp to the beginning of the message.
-open class TimestampModifier: LogModifier {
+///
+/// > Concurrency note: ``TimestampModifier`` is declared `@unchecked Sendable` because
+/// > `DateFormatter` is not formally `Sendable`. Apple documents `DateFormatter` as
+/// > thread-safe for read-only use after configuration on iOS 7+, macOS 10.9+ and the
+/// > corresponding tvOS / watchOS releases (the formatter is configured in the
+/// > closure-initialized stored property below and never mutated afterward), which
+/// > matches how Willow's logging pipeline calls `modifyMessage`. Subclasses that mutate
+/// > the formatter must restore the invariant or replace this conformance.
+open class TimestampModifier: LogModifier, @unchecked Sendable {
     private let timestampFormatter: DateFormatter = {
         var formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
@@ -62,7 +70,12 @@ open class TimestampModifier: LogModifier {
 // MARK: -
 
 /// The SourceModifier class adds the source of a message to the beginning of the message in a readable format.
-open class SourceModifier: LogModifier {
+///
+/// > Concurrency note: ``SourceModifier`` is declared `@unchecked Sendable` because it is
+/// > an `open class` (which prevents automatic Sendable synthesis), but it holds no
+/// > stored state and only reads from the `Sendable` ``LogSource`` it receives.
+/// > Subclasses that introduce mutable storage must override this conformance.
+open class SourceModifier: LogModifier, @unchecked Sendable {
     /// Initializes a `SourceModifier` instance.
     ///
     /// - Returns: A new `SourceModifier` instance.

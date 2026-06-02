@@ -26,7 +26,7 @@ import Foundation
 
 /// The ``LogFilter`` protocol defines the requirements to add your own dynamic filters to allow your own code to
 /// decide to filter out (i.e. not log) certain types of log messages based on criteria you define.
-public protocol LogFilter: Hashable {
+public protocol LogFilter: Hashable, Sendable {
     /// An optional identifier to define if you need to remove this log filter later. Defaults to a randomly generated value.
     var name: String { get }
 

@@ -25,10 +25,19 @@
 import Foundation
 
 /// A LogMessage is a detailed log entry with a name and a dictionary of associated attributes.
-public protocol LogMessage {
+///
+/// > Migration note (Willow 7.0): `LogMessage` now refines `Sendable`, and the `attributes`
+/// > dictionary type changed from `[String: Any]` to `[String: any Sendable]`. This makes
+/// > message values safe to hand across the dispatch-queue / lock boundary inside
+/// > ``Logger``'s asynchronous execution method. Conformers must ensure every value they
+/// > store in `attributes` is itself `Sendable`; legacy non-Sendable reference values
+/// > (custom reference types, `NSError` instances built ad-hoc, etc.) must be converted
+/// > to Sendable representations (e.g., the underlying message/code strings) at the
+/// > construction site.
+public protocol LogMessage: Sendable {
     /// Name of this message.
     var name: String { get }
 
     /// Attributes associated with this message.
-    var attributes: [String: Any] { get }
+    var attributes: [String: any Sendable] { get }
 }

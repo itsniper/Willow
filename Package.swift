@@ -1,4 +1,4 @@
-// swift-tools-version:5.0
+// swift-tools-version:6.0
 //
 //  Package.swift
 //
@@ -37,7 +37,23 @@ let package = Package(
         .library(name: "Willow", targets: ["Willow"])
     ],
     targets: [
-        .target(name: "Willow", path: "Source")
+        .target(
+            name: "Willow",
+            path: "Source",
+            exclude: ["Info.plist"],
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
+        .testTarget(
+            name: "WillowTests",
+            dependencies: ["Willow"],
+            path: "Tests",
+            exclude: ["Info.plist"],
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        )
     ],
-    swiftLanguageVersions: [.v5]
+    swiftLanguageModes: [.v6]
 )

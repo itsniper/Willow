@@ -30,7 +30,24 @@ import Foundation
 ///
 /// Loggers can only be configured during initialization. If you need to change a logger at runtime, it is advised to
 /// create an additional logger with a custom configuration to fit your needs.
-open class Logger {
+///
+/// ## Concurrency contract
+///
+/// ``Logger`` is declared `@unchecked Sendable` because all mutable internal state
+/// (`logLevels`, `filters`, and any future mutable storage added by subclassers) is
+/// serialized through ``ExecutionMethod/perform(work:)`` — either an `NSRecursiveLock`
+/// in the `.synchronous` case or a serial `DispatchQueue` in the `.asynchronous` case.
+/// Subclassers that introduce additional mutable stored properties MUST preserve this
+/// invariant by routing every mutation through ``executionMethod`` (typically via
+/// ``setLogLevels(_:)``-style helpers that call `executionMethod.perform { ... }`).
+///
+/// **Out of scope — ``enabled`` race.** ``enabled`` is intentionally a lock-free
+/// `Bool`. Its reads inside the public `logMessage` overloads and the writes from
+/// arbitrary call sites are not synchronized through ``executionMethod``. This racy
+/// behavior is preserved verbatim from the pre-Swift-6 implementation; tightening it
+/// (for example by routing through `perform` or backing it with `OSAllocatedUnfairLock`
+/// / an atomic) is a deliberate follow-up and is not addressed by the Sendable migration.
+open class Logger: @unchecked Sendable {
 
     // MARK: - Helper Types
 
@@ -43,13 +60,13 @@ open class Logger {
     ///
     /// - synchronous:  Logs messages synchronously once the recursive lock is available in serial order.
     /// - asynchronous: Logs messages asynchronously on the dispatch queue in a serial order.
-    public enum ExecutionMethod {
+    public enum ExecutionMethod: Sendable {
         case synchronous(lock: NSRecursiveLock)
         case asynchronous(queue: DispatchQueue)
 
         /// Performs a block of work using the desired synchronization method (either locks or serial queues).
         /// - Parameter work: An escaping block of work that needs to be protected against data races.
-        public func perform(work: @escaping () -> Void) {
+        public func perform(work: @Sendable @escaping () -> Void) {
             switch self {
             case .synchronous(lock: let lock):
                 lock.lock()
@@ -152,7 +169,7 @@ open class Logger {
         function: StaticString = #function,
         line: UInt = #line,
         column: UInt = #column,
-        _ message: @autoclosure @escaping () -> LogMessage
+        _ message: @autoclosure @escaping @Sendable () -> LogMessage
     ) {
         let logSource = LogSource(file: file, function: function, line: line, column: column)
         logMessage(message, with: LogLevel.debug, at: logSource)
@@ -170,7 +187,7 @@ open class Logger {
         function: StaticString = #function,
         line: UInt = #line,
         column: UInt = #column,
-        _ message: @escaping () -> LogMessage
+        _ message: @escaping @Sendable () -> LogMessage
     ) {
         let logSource = LogSource(file: file, function: function, line: line, column: column)
         logMessage(message, with: LogLevel.debug, at: logSource)
@@ -188,7 +205,7 @@ open class Logger {
         function: StaticString = #function,
         line: UInt = #line,
         column: UInt = #column,
-        _ message: @autoclosure @escaping () -> LogMessage
+        _ message: @autoclosure @escaping @Sendable () -> LogMessage
     ) {
         let logSource = LogSource(file: file, function: function, line: line, column: column)
         logMessage(message, with: LogLevel.info, at: logSource)
@@ -206,7 +223,7 @@ open class Logger {
         function: StaticString = #function,
         line: UInt = #line,
         column: UInt = #column,
-        _ message: @escaping () -> LogMessage
+        _ message: @escaping @Sendable () -> LogMessage
     ) {
         let logSource = LogSource(file: file, function: function, line: line, column: column)
         logMessage(message, with: LogLevel.info, at: logSource)
@@ -224,7 +241,7 @@ open class Logger {
         function: StaticString = #function,
         line: UInt = #line,
         column: UInt = #column,
-        _ message: @autoclosure @escaping () -> LogMessage
+        _ message: @autoclosure @escaping @Sendable () -> LogMessage
     ) {
         let logSource = LogSource(file: file, function: function, line: line, column: column)
         logMessage(message, with: LogLevel.event, at: logSource)
@@ -242,7 +259,7 @@ open class Logger {
         function: StaticString = #function,
         line: UInt = #line,
         column: UInt = #column,
-        _ message: @escaping () -> LogMessage
+        _ message: @escaping @Sendable () -> LogMessage
     ) {
         let logSource = LogSource(file: file, function: function, line: line, column: column)
         logMessage(message, with: LogLevel.event, at: logSource)
@@ -260,7 +277,7 @@ open class Logger {
         function: StaticString = #function,
         line: UInt = #line,
         column: UInt = #column,
-        _ message: @autoclosure @escaping () -> LogMessage
+        _ message: @autoclosure @escaping @Sendable () -> LogMessage
     ) {
         let logSource = LogSource(file: file, function: function, line: line, column: column)
         logMessage(message, with: LogLevel.warn, at: logSource)
@@ -278,7 +295,7 @@ open class Logger {
         function: StaticString = #function,
         line: UInt = #line,
         column: UInt = #column,
-        _ message: @escaping () -> LogMessage
+        _ message: @escaping @Sendable () -> LogMessage
     ) {
         let logSource = LogSource(file: file, function: function, line: line, column: column)
         logMessage(message, with: LogLevel.warn, at: logSource)
@@ -296,7 +313,7 @@ open class Logger {
         function: StaticString = #function,
         line: UInt = #line,
         column: UInt = #column,
-        _ message: @autoclosure @escaping () -> LogMessage
+        _ message: @autoclosure @escaping @Sendable () -> LogMessage
     ) {
         let logSource = LogSource(file: file, function: function, line: line, column: column)
         logMessage(message, with: LogLevel.error, at: logSource)
@@ -314,7 +331,7 @@ open class Logger {
         function: StaticString = #function,
         line: UInt = #line,
         column: UInt = #column,
-        _ message: @escaping () -> LogMessage
+        _ message: @escaping @Sendable () -> LogMessage
     ) {
         let logSource = LogSource(file: file, function: function, line: line, column: column)
         logMessage(message, with: LogLevel.error, at: logSource)
@@ -326,7 +343,7 @@ open class Logger {
     ///   - message:   A closure returning the message to log.
     ///   - logLevel:  The log level associated with the message closure.
     ///   - logSource: The souce of the log message.
-    open func logMessage(_ message: @escaping () -> (LogMessage), with logLevel: LogLevel, at logSource: LogSource) {
+    open func logMessage(_ message: @escaping @Sendable () -> (LogMessage), with logLevel: LogLevel, at logSource: LogSource) {
         guard enabled && logLevelAllowed(logLevel) else { return }
 
         switch executionMethod {
@@ -354,7 +371,7 @@ open class Logger {
         function: StaticString = #function,
         line: UInt = #line,
         column: UInt = #column,
-        _ message: @autoclosure @escaping () -> String
+        _ message: @autoclosure @escaping @Sendable () -> String
     ) {
         let logSource = LogSource(file: file, function: function, line: line, column: column)
         logMessage(message, with: LogLevel.debug, at: logSource)
@@ -372,7 +389,7 @@ open class Logger {
         function: StaticString = #function,
         line: UInt = #line,
         column: UInt = #column,
-        _ message: @escaping () -> String
+        _ message: @escaping @Sendable () -> String
     ) {
         let logSource = LogSource(file: file, function: function, line: line, column: column)
         logMessage(message, with: LogLevel.debug, at: logSource)
@@ -390,7 +407,7 @@ open class Logger {
         function: StaticString = #function,
         line: UInt = #line,
         column: UInt = #column,
-        _ message: @autoclosure @escaping () -> String
+        _ message: @autoclosure @escaping @Sendable () -> String
     ) {
         let logSource = LogSource(file: file, function: function, line: line, column: column)
         logMessage(message, with: LogLevel.info, at: logSource)
@@ -408,7 +425,7 @@ open class Logger {
         function: StaticString = #function,
         line: UInt = #line,
         column: UInt = #column,
-        _ message: @escaping () -> String
+        _ message: @escaping @Sendable () -> String
     ) {
         let logSource = LogSource(file: file, function: function, line: line, column: column)
         logMessage(message, with: LogLevel.info, at: logSource)
@@ -426,7 +443,7 @@ open class Logger {
         function: StaticString = #function,
         line: UInt = #line,
         column: UInt = #column,
-        _ message: @autoclosure @escaping () -> String
+        _ message: @autoclosure @escaping @Sendable () -> String
     ) {
         let logSource = LogSource(file: file, function: function, line: line, column: column)
         logMessage(message, with: LogLevel.event, at: logSource)
@@ -444,7 +461,7 @@ open class Logger {
         function: StaticString = #function,
         line: UInt = #line,
         column: UInt = #column,
-        _ message: @escaping () -> String
+        _ message: @escaping @Sendable () -> String
     ) {
         let logSource = LogSource(file: file, function: function, line: line, column: column)
         logMessage(message, with: LogLevel.event, at: logSource)
@@ -462,7 +479,7 @@ open class Logger {
         function: StaticString = #function,
         line: UInt = #line,
         column: UInt = #column,
-        _ message: @autoclosure @escaping () -> String
+        _ message: @autoclosure @escaping @Sendable () -> String
     ) {
         let logSource = LogSource(file: file, function: function, line: line, column: column)
         logMessage(message, with: LogLevel.warn, at: logSource)
@@ -480,7 +497,7 @@ open class Logger {
         function: StaticString = #function,
         line: UInt = #line,
         column: UInt = #column,
-        _ message: @escaping () -> String
+        _ message: @escaping @Sendable () -> String
     ) {
         let logSource = LogSource(file: file, function: function, line: line, column: column)
         logMessage(message, with: LogLevel.warn, at: logSource)
@@ -498,7 +515,7 @@ open class Logger {
         function: StaticString = #function,
         line: UInt = #line,
         column: UInt = #column,
-        _ message: @autoclosure @escaping () -> String
+        _ message: @autoclosure @escaping @Sendable () -> String
     ) {
         let logSource = LogSource(file: file, function: function, line: line, column: column)
         logMessage(message, with: LogLevel.error, at: logSource)
@@ -516,7 +533,7 @@ open class Logger {
         function: StaticString = #function,
         line: UInt = #line,
         column: UInt = #column,
-        _ message: @escaping () -> String
+        _ message: @escaping @Sendable () -> String
     ) {
         let logSource = LogSource(file: file, function: function, line: line, column: column)
         logMessage(message, with: LogLevel.error, at: logSource)
@@ -528,7 +545,7 @@ open class Logger {
     ///   - message:    A closure returning the message to log.
     ///   - logLevel:   The log level associated with the message closure.
     ///   - logSource:  The souce of the log message.
-    open func logMessage(_ message: @escaping () -> String, with logLevel: LogLevel, at logSource: LogSource) {
+    open func logMessage(_ message: @escaping @Sendable () -> String, with logLevel: LogLevel, at logSource: LogSource) {
         guard enabled && logLevelAllowed(logLevel) else { return }
 
         switch executionMethod {
@@ -562,12 +579,12 @@ open class Logger {
 
     // MARK: - Private - No-Op Logger
 
-    private final class NoOpLogger: Logger {
+    private final class NoOpLogger: Logger, @unchecked Sendable {
         init() {
             super.init(logLevels: .off, writers: [])
             enabled = false
         }
 
-        override func logMessage(_ message: @escaping () -> String, with logLevel: LogLevel, at logSource: LogSource) {}
+        override func logMessage(_ message: @escaping @Sendable () -> String, with logLevel: LogLevel, at logSource: LogSource) {}
     }
 }

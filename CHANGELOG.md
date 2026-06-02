@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 `Willow` adheres to [Semantic Versioning](http://semver.org/).
 
+#### 7.x Releases
+
+- `7.0.x` Releases - [7.0.0](#700)
+
 #### 6.x Releases
 
 - `6.0.x` Releases - [6.0.0](#600)
@@ -38,6 +42,31 @@ All notable changes to this project will be documented in this file.
 #### Added
 
 #### Updated
+
+---
+
+## [7.0.0](https://github.com/Nike-Inc/Willow/releases/tag/7.0.0)
+
+Released on TBD.
+
+#### Added
+
+- Full Swift 6 strict-concurrency compatibility (resolves [#75](https://github.com/Nike-Inc/Willow/issues/75)).
+  - `Package.swift` is bumped to `// swift-tools-version:6.0` and pins the library and test targets to Swift 6 language mode via `.swiftSettings([.swiftLanguageMode(.v6)])`.
+  - `Willow.xcodeproj` sets `SWIFT_VERSION = 6.0` on every shipped scheme.
+  - `Willow.podspec` declares `s.swift_versions = ["6.0"]`.
+- `Documentation/Willow 7.0 Migration Guide.md` documents the migration for downstream consumers.
+
+#### Updated
+
+- `LogMessage` now refines `Sendable`, and `attributes` is typed `[String: any Sendable]` instead of `[String: Any]`. (Source-breaking.)
+- `LogWriter`, `LogModifierWriter`, `LogModifier`, and `LogFilter` now refine `Sendable`. The existing `(message, logLevel, logSource)` writer / modifier callback signatures are unchanged.
+- `LogLevel` and `LogSource` declare `Sendable` conformance. Among other things, the `LogLevel` change silences the issue #75 diagnostic on the public statics (`.debug`, `.info`, `.event`, `.warn`, `.error`, `.off`, `.all`).
+- `Logger` and `NoOpLogger` are declared `@unchecked Sendable`. A new class-level doc comment on `Logger` records the lock/queue-serialized mutation invariant, the subclasser obligation, and the (deliberately preserved) `enabled` race.
+- `Logger.ExecutionMethod` is `Sendable`; its `perform(work:)` closure parameter is `@Sendable`.
+- Every `@escaping` / `@autoclosure` closure parameter on `Logger`'s public logging APIs (`debug` … `errorMessage`, `logMessage`) is now `@Sendable`.
+- The bundled `ConsoleWriter`, `OSLogWriter`, `TimestampModifier`, and `SourceModifier` declare `@unchecked Sendable` with documentation citing their respective thread-safety contracts.
+- The `Example/` targets demonstrate the recommended `nonisolated(unsafe)` pattern for module-level logger globals, and the iOS Example app uses `@main` in place of the deprecated `@UIApplicationMain`.
 
 #### Deprecated
 
